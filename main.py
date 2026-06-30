@@ -47,14 +47,13 @@ async def predict(file: UploadFile = File(...)):
         result = session.run(None, {input_name: input_data})
 
         # 6. Process results
-        # Print raw output for debugging in Render logs
-        print("Raw model output:", result[0][0])
+        raw_output = result[0][0]
+        print("Raw model output:", raw_output)
 
         labels = ['Alternaria Leaf Spot', 'Black Rot', 'Downy Mildew', 'Healthy']
-        output = result[0][0]
-        max_idx = np.argmax(output)
+        max_idx = np.argmax(raw_output)
 
-        return {"disease": labels[max_idx], "confidence": float(np.max(output))}
+        return {"disease": labels[max_idx], "confidence": float(raw_output[max_idx])}
 
     except Exception as e:
         return {"error": str(e), "trace": traceback.format_exc()}
