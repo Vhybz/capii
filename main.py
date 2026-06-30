@@ -20,6 +20,7 @@ app.add_middleware(
 try:
     session = ort.InferenceSession("cabbage_model.onnx")
 except Exception as e:
+    print(f"Error loading model: {e}")
     session = None
 
 @app.post("/predict")
@@ -32,13 +33,8 @@ async def predict(file: UploadFile = File(...)):
         contents = await file.read()
         image = Image.open(io.BytesIO(contents)).convert('RGB').resize((224, 224))
 
-        # 2. Convert to float32 and normalize
+        # 2. Simple normalization (0-1 range)
         input_data = np.array(image, dtype=np.float32) / 255.0
-
-        # Apply ImageNet normalization (Standard for PyTorch models)
-        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
-        input_data = (input_data - mean) / std
 
         # 3. TRANSPOSE: Move channels to front for PyTorch [224, 224, 3] -> [3, 224, 224]
         input_data = np.transpose(input_data, (2, 0, 1))
@@ -51,6 +47,9 @@ async def predict(file: UploadFile = File(...)):
         result = session.run(None, {input_name: input_data})
 
         # 6. Process results
+        # Print raw output for debugging in Render logs
+        print("Raw model output:", result[0][0])
+
         labels = ['Alternaria Leaf Spot', 'Black Rot', 'Downy Mildew', 'Healthy']
         output = result[0][0]
         max_idx = np.argmax(output)
