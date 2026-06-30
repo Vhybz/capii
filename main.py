@@ -1,10 +1,21 @@
 from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 import onnxruntime as ort
 import numpy as np
 from PIL import Image
 import io
 
 app = FastAPI()
+
+# Add CORS middleware to allow requests from any origin
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Load the model
 session = ort.InferenceSession("cabbage_model.onnx")
 
 @app.post("/predict")
@@ -12,15 +23,15 @@ async def predict(file: UploadFile = File(...)):
     # 1. Decode and resize the image
     image = Image.open(io.BytesIO(await file.read())).convert('RGB').resize((224, 224))
 
-    # 2. Convert to float32 (matches what we send from Flutter)
+    # 2. Convert to float32
     input_data = np.array(image, dtype=np.float32) / 255.0
-    input_data = np.expand_dims(input_data, axis=0) # Add batch dimension [1, 224, 224, 3]
+    input_data = np.expand_dims(input_data, axis=0) # [1, 224, 224, 3]
 
     # 3. Run inference
     input_name = session.get_inputs()[0].name
     result = session.run(None, {input_name: input_data})
 
-    # 4. Process the results (Map to your labels)
+    # 4. Process the results
     labels = ['Alternaria Leaf Spot', 'Black Rot', 'Downy Mildew', 'Healthy']
     max_idx = np.argmax(result[0])
 
